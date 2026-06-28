@@ -1,0 +1,1559 @@
+# fluffy-sniffle
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI 仿真手机</title>
+<style>
+  /* ===== 全局 ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #07C160;
+    --green-dark: #059a4d;
+    --green-light: #e8f9ee;
+    --bg: #EDEDED;
+    --white: #fff;
+    --gray1: #f5f5f5;
+    --gray2: #c8c8c8;
+    --gray3: #888;
+    --gray4: #444;
+    --black: #111;
+    --bubble-me: #95EC69;
+    --bubble-other: #fff;
+    --header: #EBE9E9;
+    --red: #FA5151;
+    --blue: #1677FF;
+    --radius: 18px;
+    --font: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ===== 手机外壳 ===== */
+  #phone {
+    width: 390px;
+    height: 844px;
+    background: var(--white);
+    border-radius: 50px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 0 0 2px #555,
+      0 0 0 4px #333,
+      0 30px 80px rgba(0,0,0,0.8),
+      inset 0 0 30px rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 顶部刘海 */
+  #phone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #111;
+    border-radius: 0 0 20px 20px;
+    z-index: 999;
+  }
+
+  /* ===== 状态栏 ===== */
+  #statusbar {
+    height: 50px;
+    background: var(--header);
+    display: flex;
+    align-items: flex-end;
+    padding: 0 24px 6px;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+  }
+  #statusbar .time { font-size: 15px; font-weight: 600; color: var(--black); }
+  #statusbar .icons { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--black); }
+  #statusbar .icons svg { width: 16px; height: 16px; fill: currentColor; }
+
+  /* ===== 页面容器 ===== */
+  #app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* ===== 通用顶栏 ===== */
+  .topbar {
+    height: 56px;
+    background: var(--header);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+    border-bottom: 0.5px solid var(--gray2);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .topbar .title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--black);
+    flex: 1;
+    text-align: center;
+  }
+  .topbar .back-btn {
+    font-size: 15px;
+    color: var(--black);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 44px;
+  }
+  .topbar .right-btn {
+    font-size: 13px;
+    color: var(--gray3);
+    cursor: pointer;
+    min-width: 44px;
+    text-align: right;
+  }
+
+  /* ===== 底部导航 ===== */
+  #tabbar {
+    height: 83px;
+    background: var(--header);
+    border-top: 0.5px solid var(--gray2);
+    display: flex;
+    align-items: flex-start;
+    padding-top: 8px;
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: opacity 0.1s;
+  }
+  .tab:active { opacity: 0.6; }
+  .tab-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .tab.active .tab-icon { background: var(--green-light); }
+  .tab-label { font-size: 10px; color: var(--gray3); }
+  .tab.active .tab-label { color: var(--green); }
+
+  /* ===== SCREENS ===== */
+  .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .screen.active { display: flex; }
+
+  /* ===== 聊天列表 ===== */
+  #chatlist-screen .list-area {
+    flex: 1; overflow-y: auto;
+    background: var(--white);
+  }
+  .chat-item {
+    display: flex; align-items: center;
+    padding: 12px 16px; gap: 12px;
+    border-bottom: 0.5px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .chat-item:active { background: #f5f5f5; }
+  .avatar {
+    width: 48px; height: 48px;
+    border-radius: 6px;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    color: white;
+    flex-shrink: 0;
+    font-weight: bold;
+    overflow: hidden;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .chat-info { flex: 1; min-width: 0; }
+  .chat-name { font-size: 16px; font-weight: 500; color: var(--black); }
+  .chat-preview { font-size: 13px; color: var(--gray3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-meta { text-align: right; }
+  .chat-time { font-size: 11px; color: var(--gray3); }
+  .badge {
+    display: inline-block;
+    background: var(--red);
+    color: white;
+    font-size: 11px;
+    min-width: 18px; height: 18px;
+    border-radius: 9px;
+    text-align: center; line-height: 18px;
+    padding: 0 4px;
+    margin-top: 4px;
+  }
+
+  /* ===== 聊天窗口 ===== */
+  #chat-screen { background: var(--bg); }
+  #messages {
+    flex: 1; overflow-y: auto;
+    padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .msg-row { display: flex; align-items: flex-end; gap: 8px; }
+  .msg-row.me { flex-direction: row-reverse; }
+  .msg-avatar { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; font-size: 18px; display: flex; align-items: center; justify-content: center; background: var(--green); color: white; }
+  .bubble {
+    max-width: 240px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    line-height: 1.5;
+    word-break: break-word;
+    position: relative;
+  }
+  .bubble.other { background: var(--bubble-other); color: var(--black); border-top-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .bubble.me { background: var(--bubble-me); color: var(--black); border-bottom-right-radius: 2px; }
+  .bubble.typing { padding: 14px 16px; }
+  .typing-dots { display: flex; gap: 4px; align-items: center; }
+  .typing-dots span {
+    width: 7px; height: 7px;
+    background: var(--gray3);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  /* 输入区 */
+  #input-area {
+    background: var(--header);
+    border-top: 0.5px solid var(--gray2);
+    padding: 8px 12px;
+    display: flex; align-items: flex-end; gap: 8px;
+    flex-shrink: 0;
+  }
+  #msg-input {
+    flex: 1;
+    background: var(--white);
+    border: none; border-radius: 20px;
+    padding: 9px 14px;
+    font-size: 15px;
+    font-family: var(--font);
+    outline: none;
+    resize: none;
+    max-height: 100px;
+    line-height: 1.4;
+  }
+  .send-btn {
+    width: 36px; height: 36px;
+    background: var(--green);
+    border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .send-btn:active { background: var(--green-dark); }
+  .send-btn svg { width: 18px; height: 18px; fill: white; }
+
+  /* ===== 角色卡 ===== */
+  #chars-screen .scroll-area { flex: 1; overflow-y: auto; padding: 12px; }
+  .section-label {
+    font-size: 12px; color: var(--gray3);
+    padding: 8px 4px 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .char-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .char-card {
+    background: var(--white);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .char-card:active { transform: scale(0.97); }
+  .char-card.active-char::after {
+    content: '✓';
+    position: absolute; top: 8px; right: 8px;
+    width: 22px; height: 22px;
+    background: var(--green);
+    color: white; font-size: 13px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold;
+  }
+  .char-cover {
+    height: 100px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+  }
+  .char-body { padding: 10px 12px 12px; }
+  .char-name { font-size: 14px; font-weight: 600; color: var(--black); }
+  .char-desc { font-size: 12px; color: var(--gray3); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .char-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .tag { font-size: 10px; background: var(--green-light); color: var(--green-dark); padding: 2px 6px; border-radius: 10px; }
+
+  .add-card {
+    background: var(--white);
+    border-radius: 14px;
+    border: 2px dashed var(--gray2);
+    height: 180px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; gap: 8px;
+    color: var(--gray3); font-size: 13px;
+    transition: border-color 0.15s;
+  }
+  .add-card:active { border-color: var(--green); }
+  .add-card .plus { font-size: 32px; color: var(--gray2); }
+
+  /* ===== 世界书 ===== */
+  #world-screen .scroll-area { flex: 1; overflow-y: auto; padding: 12px; }
+  .world-item {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .world-item:active { background: var(--gray1); }
+  .world-icon { font-size: 30px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+  .world-info { flex: 1; min-width: 0; }
+  .world-name { font-size: 15px; font-weight: 600; color: var(--black); }
+  .world-desc { font-size: 12px; color: var(--gray3); margin-top: 2px; }
+  .world-toggle { flex-shrink: 0; }
+  .toggle {
+    width: 44px; height: 26px;
+    background: var(--gray2);
+    border-radius: 13px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle.on { background: var(--green); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle.on::after { left: 21px; }
+
+  /* ===== 设置 ===== */
+  #settings-screen .scroll-area { flex: 1; overflow-y: auto; padding: 0 0 16px; }
+  .settings-section { margin-top: 16px; }
+  .settings-section-title { font-size: 12px; color: var(--gray3); padding: 0 16px 6px; }
+  .settings-list { background: var(--white); }
+  .settings-item {
+    display: flex; align-items: center;
+    padding: 14px 16px; gap: 12px;
+    border-bottom: 0.5px solid #f0f0f0;
+    cursor: pointer;
+  }
+  .settings-item:last-child { border-bottom: none; }
+  .settings-item:active { background: var(--gray1); }
+  .settings-item .s-icon { font-size: 20px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+  .settings-item .s-label { flex: 1; font-size: 15px; color: var(--black); }
+  .settings-item .s-value { font-size: 13px; color: var(--gray3); }
+  .settings-item .s-arrow { color: var(--gray2); font-size: 14px; }
+
+  /* Token 显示 */
+  .token-bar {
+    margin: 12px 16px;
+    background: var(--white);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .token-bar h3 { font-size: 14px; color: var(--gray3); margin-bottom: 10px; }
+  .token-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .token-stat { text-align: center; }
+  .token-stat .val { font-size: 20px; font-weight: 700; color: var(--black); }
+  .token-stat .lbl { font-size: 11px; color: var(--gray3); margin-top: 2px; }
+  .token-stat .val.green { color: var(--green); }
+  .token-stat .val.blue { color: var(--blue); }
+  .token-stat .val.red { color: var(--red); }
+
+  /* ===== 模态/弹窗 ===== */
+  .modal-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 500;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-height: 80%;
+    overflow-y: auto;
+    padding: 0 0 40px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-handle { width: 36px; height: 4px; background: var(--gray2); border-radius: 2px; margin: 12px auto 0; }
+  .modal-title { font-size: 17px; font-weight: 600; text-align: center; padding: 16px; border-bottom: 0.5px solid #f0f0f0; }
+  .modal-body { padding: 16px; }
+  .modal-body label { font-size: 13px; color: var(--gray3); display: block; margin-bottom: 4px; margin-top: 12px; }
+  .modal-body label:first-child { margin-top: 0; }
+  .modal-input {
+    width: 100%; padding: 11px 14px;
+    border: 1.5px solid var(--gray2);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color 0.15s;
+    background: var(--white);
+  }
+  .modal-input:focus { border-color: var(--green); }
+  textarea.modal-input { resize: vertical; min-height: 90px; }
+  .modal-btn {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+    font-family: var(--font);
+  }
+  .modal-btn.primary { background: var(--green); color: white; }
+  .modal-btn.primary:active { background: var(--green-dark); }
+  .modal-btn.danger { background: #fff0f0; color: var(--red); }
+  .modal-select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--gray2);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: var(--font);
+    outline: none;
+    background: var(--white);
+    -webkit-appearance: none;
+  }
+  .modal-select:focus { border-color: var(--green); }
+
+  /* 文件上传区 */
+  .upload-zone {
+    border: 2px dashed var(--gray2);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    margin-top: 12px;
+  }
+  .upload-zone:hover { border-color: var(--green); }
+  .upload-zone p { font-size: 13px; color: var(--gray3); margin-top: 8px; }
+
+  /* Toast */
+  #toast {
+    position: absolute;
+    bottom: 100px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.75);
+    color: white;
+    padding: 9px 18px;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 999;
+    display: none;
+    white-space: nowrap;
+  }
+  #toast.show { display: block; animation: fadeInOut 2s ease; }
+  @keyframes fadeInOut { 0%{opacity:0} 15%{opacity:1} 75%{opacity:1} 100%{opacity:0} }
+
+  /* 底部指示条 */
+  #home-indicator {
+    height: 34px;
+    background: var(--header);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  #home-indicator::after {
+    content: '';
+    width: 120px; height: 5px;
+    background: var(--black);
+    border-radius: 3px;
+    opacity: 0.2;
+  }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar { width: 0; }
+
+  /* 系统提示气泡 */
+  .sys-msg { text-align: center; font-size: 12px; color: var(--gray3); margin: 4px 0; }
+
+  /* API Key 掩码 */
+  .masked { letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<div id="phone">
+  <!-- 状态栏 -->
+  <div id="statusbar">
+    <span class="time" id="clock">9:41</span>
+    <div class="icons">
+      <svg viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+    </div>
+  </div>
+
+  <!-- 应用区 -->
+  <div id="app">
+
+    <!-- ===== 聊天列表 ===== -->
+    <div id="chatlist-screen" class="screen active">
+      <div class="topbar">
+        <div class="title">🤖 AI 手机</div>
+        <div class="right-btn" onclick="showNewChat()">＋</div>
+      </div>
+      <div class="list-area">
+        <div id="chat-list-items"></div>
+      </div>
+    </div>
+
+    <!-- ===== 聊天窗口 ===== -->
+    <div id="chat-screen" class="screen">
+      <div class="topbar">
+        <div class="back-btn" onclick="goBack()">‹ 返回</div>
+        <div class="title" id="chat-title">AI 角色</div>
+        <div class="right-btn" onclick="showChatInfo()">⋯</div>
+      </div>
+      <div id="messages"></div>
+      <div id="input-area">
+        <textarea id="msg-input" placeholder="说点什么…" rows="1"
+          oninput="autoResize(this)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
+        </textarea>
+        <button class="send-btn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== 角色卡 ===== -->
+    <div id="chars-screen" class="screen">
+      <div class="topbar">
+        <div class="title">角色卡</div>
+      </div>
+      <div class="scroll-area">
+        <div class="section-label">我的角色</div>
+        <div class="char-grid" id="char-grid"></div>
+      </div>
+    </div>
+
+    <!-- ===== 世界书 ===== -->
+    <div id="world-screen" class="screen">
+      <div class="topbar">
+        <div class="title">世界书</div>
+        <div class="right-btn" onclick="showWorldModal()">＋</div>
+      </div>
+      <div class="scroll-area">
+        <div class="section-label">启用的世界书条目</div>
+        <div id="world-list"></div>
+      </div>
+    </div>
+
+    <!-- ===== 设置 ===== -->
+    <div id="settings-screen" class="screen">
+      <div class="topbar"><div class="title">设置</div></div>
+      <div class="scroll-area">
+
+        <!-- Token 统计 -->
+        <div class="token-bar">
+          <h3>📊 Token 使用统计</h3>
+          <div class="token-stats">
+            <div class="token-stat">
+              <div class="val green" id="stat-in">0</div>
+              <div class="lbl">输入 Token</div>
+            </div>
+            <div class="token-stat">
+              <div class="val blue" id="stat-out">0</div>
+              <div class="lbl">输出 Token</div>
+            </div>
+            <div class="token-stat">
+              <div class="val red" id="stat-total">0</div>
+              <div class="lbl">总计</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">API 配置</div>
+          <div class="settings-list">
+            <div class="settings-item" onclick="showApiModal()">
+              <div class="s-icon">🔑</div>
+              <div class="s-label">API Key</div>
+              <div class="s-value" id="apikey-display">未设置</div>
+              <div class="s-arrow">›</div>
+            </div>
+            <div class="settings-item" onclick="showModelModal()">
+              <div class="s-icon">🧠</div>
+              <div class="s-label">模型</div>
+              <div class="s-value" id="model-display">claude-sonnet-4-6</div>
+              <div class="s-arrow">›</div>
+            </div>
+            <div class="settings-item" onclick="showEndpointModal()">
+              <div class="s-icon">🌐</div>
+              <div class="s-label">API 地址</div>
+              <div class="s-value" id="endpoint-display">Anthropic</div>
+              <div class="s-arrow">›</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">对话设置</div>
+          <div class="settings-list">
+            <div class="settings-item" onclick="showParamModal()">
+              <div class="s-icon">🎛️</div>
+              <div class="s-label">生成参数</div>
+              <div class="s-value" id="param-display">温度 0.8</div>
+              <div class="s-arrow">›</div>
+            </div>
+            <div class="settings-item" onclick="clearHistory()">
+              <div class="s-icon">🗑️</div>
+              <div class="s-label">清除对话记录</div>
+              <div class="s-arrow">›</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">数据</div>
+          <div class="settings-list">
+            <div class="settings-item" onclick="exportData()">
+              <div class="s-icon">📤</div>
+              <div class="s-label">导出所有数据</div>
+              <div class="s-arrow">›</div>
+            </div>
+            <div class="settings-item" onclick="importData()">
+              <div class="s-icon">📥</div>
+              <div class="s-label">导入备份</div>
+              <div class="s-arrow">›</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /app -->
+
+  <!-- 底部导航 -->
+  <div id="tabbar">
+    <div class="tab active" onclick="switchTab('chatlist')" data-tab="chatlist">
+      <div class="tab-icon">💬</div>
+      <div class="tab-label">聊天</div>
+    </div>
+    <div class="tab" onclick="switchTab('chars')" data-tab="chars">
+      <div class="tab-icon">🧙</div>
+      <div class="tab-label">角色</div>
+    </div>
+    <div class="tab" onclick="switchTab('world')" data-tab="world">
+      <div class="tab-icon">📚</div>
+      <div class="tab-label">世界书</div>
+    </div>
+    <div class="tab" onclick="switchTab('settings')" data-tab="settings">
+      <div class="tab-icon">⚙️</div>
+      <div class="tab-label">设置</div>
+    </div>
+  </div>
+
+  <!-- home indicator -->
+  <div id="home-indicator"></div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- ===== 模态弹窗 ===== -->
+
+  <!-- API Key 设置 -->
+  <div class="modal-overlay" id="api-modal" onclick="closeModal('api-modal')">
+    <div class="modal" onclick.stop>
+      <div class="modal-handle"></div>
+      <div class="modal-title">API Key 设置</div>
+      <div class="modal-body">
+        <label>API Key</label>
+        <input class="modal-input" type="password" id="input-apikey" placeholder="sk-ant-api...">
+        <label>API 代理地址（可选）</label>
+        <input class="modal-input" type="text" id="input-proxy" placeholder="https://api.anthropic.com">
+        <button class="modal-btn primary" onclick="saveApiKey()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模型选择 -->
+  <div class="modal-overlay" id="model-modal" onclick="closeModal('model-modal')">
+    <div class="modal" onclick.stop>
+      <div class="modal-handle"></div>
+      <div class="modal-title">选择模型</div>
+      <div class="modal-body">
+        <label>模型</label>
+        <select class="modal-select" id="input-model">
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (推荐)</option>
+          <option value="claude-opus-4-6">Claude Opus 4.6</option>
+          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-4o-mini">GPT-4o mini</option>
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          <option value="deepseek-chat">DeepSeek Chat</option>
+          <option value="custom">自定义…</option>
+        </select>
+        <input class="modal-input" type="text" id="input-custom-model" placeholder="自定义模型名称" style="margin-top:10px;display:none">
+        <label>最大输出 Token</label>
+        <input class="modal-input" type="number" id="input-maxtoken" value="2048" min="256" max="8192">
+        <button class="modal-btn primary" onclick="saveModel()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成参数 -->
+  <div class="modal-overlay" id="param-modal" onclick="closeModal('param-modal')">
+    <div class="modal" onclick.stop>
+      <div class="modal-handle"></div>
+      <div class="modal-title">生成参数</div>
+      <div class="modal-body">
+        <label>温度 Temperature（0-2）</label>
+        <input class="modal-input" type="number" id="input-temp" value="0.8" min="0" max="2" step="0.1">
+        <label>Top-P（0-1）</label>
+        <input class="modal-input" type="number" id="input-topp" value="0.9" min="0" max="1" step="0.05">
+        <label>重复惩罚 Frequency Penalty（0-2）</label>
+        <input class="modal-input" type="number" id="input-freqpen" value="0" min="0" max="2" step="0.1">
+        <button class="modal-btn primary" onclick="saveParams()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Endpoint 设置 -->
+  <div class="modal-overlay" id="endpoint-modal" onclick="closeModal('endpoint-modal')">
+    <div class="modal" onclick.stop>
+      <div class="modal-handle"></div>
+      <div class="modal-title">API 服务商</div>
+      <div class="modal-body">
+        <label>选择服务商</label>
+        <select class="modal-select" id="input-provider">
+          <option value="anthropic">Anthropic (claude.ai)</option>
+          <option value="openai">OpenAI</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="custom">自定义地址</option>
+        </select>
+        <input class="modal-input" id="input-custom-endpoint" placeholder="https://your-proxy.com/v1" style="margin-top:10px;display:none">
+        <button class="modal-btn primary" onclick="saveEndpoint()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新建/编辑角色卡 -->
+  <div class="modal-overlay" id="char-modal" onclick="closeModal('char-modal')">
+    <div class="modal" onclick.stop>
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="char-modal-title">创建角色卡</div>
+      <div class="modal-body">
+        <label>角色名称</label>
+        <input class="modal-input" type="text" id="char-name-input" placeholder="例如：林小薇">
+        <label>头像 Emoji</label>
+        <input class="modal-input" type="text" id="char-emoji-input" placeholder="🧝" maxlength="2">
+        <label>角色描述（系统提示词）</label>
+        <textarea class="modal-input" id="char-desc-input" placeholder="你是林小薇，一个活泼开朗的大学生，喜欢聊天和分享生活…" rows="5"></textarea>
+        <label>开场白</label>
+        <input class="modal-input" type="text" id="char-greeting-input" placeholder="嗨！很高兴认识你～">
+        <label>标签（逗号分隔）</label>
+        <input class="modal-input" type="text" id="char-tags-input" placeholder="聊天, 生活, 日常">
+        <div class="upload-zone" onclick="importCharFile()">
+          <div style="font-size:28px">📁</div>
+          <p>导入 .json 角色卡文件</p>
+          <p style="font-size:11px;margin-top:4px">支持 SillyTavern / TavernAI 格式</p>
+        </div>
+        <button class="modal-btn primary" onclick="saveChar()">保存角色</button>
+        <button class="modal-btn danger" id="delete-char-btn" onclick="deleteChar()" style="display:none">删除角色</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 世界书条目 -->
+  <div class="modal-overlay" id="world-modal" onclick="closeModal('world-modal')">
+    <div class="modal" onclick.stop>
+      <div class="modal-handle"></div>
+      <div class="modal-title">添加世界书条目</div>
+      <div class="modal-body">
+        <label>条目名称</label>
+        <input class="modal-input" type="text" id="world-name-input" placeholder="例如：魔法世界设定">
+        <label>触发关键词（逗号分隔）</label>
+        <input class="modal-input" type="text" id="world-keys-input" placeholder="魔法, 咒语, 法师">
+        <label>内容</label>
+        <textarea class="modal-input" id="world-content-input" placeholder="在这个世界里，魔法是由精灵语咒语激活的…" rows="5"></textarea>
+        <div class="upload-zone" onclick="importWorldFile()">
+          <div style="font-size:28px">📁</div>
+          <p>导入世界书 .json 文件</p>
+        </div>
+        <button class="modal-btn primary" onclick="saveWorld()">保存条目</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 聊天信息 -->
+  <div class="modal-overlay" id="chat-info-modal" onclick="closeModal('chat-info-modal')">
+    <div class="modal" onclick.stop>
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="chat-info-title">聊天信息</div>
+      <div class="modal-body" id="chat-info-body"></div>
+    </div>
+  </div>
+
+  <!-- 隐藏文件输入 -->
+  <input type="file" id="file-char" accept=".json" style="display:none" onchange="handleCharFile(event)">
+  <input type="file" id="file-world" accept=".json" style="display:none" onchange="handleWorldFile(event)">
+  <input type="file" id="file-import" accept=".json" style="display:none" onchange="handleImport(event)">
+
+</div><!-- /phone -->
+
+<script>
+// ===== 状态管理 =====
+let state = {
+  apiKey: '',
+  apiProxy: 'https://api.anthropic.com',
+  provider: 'anthropic',
+  model: 'claude-sonnet-4-6',
+  maxTokens: 2048,
+  temperature: 0.8,
+  topP: 0.9,
+  frequencyPenalty: 0,
+  chars: [],
+  activeCharId: null,
+  worldEntries: [],
+  chats: [], // [{id, charId, messages:[]}]
+  activeChatId: null,
+  tokenStats: { input: 0, output: 0 },
+};
+
+// 加载本地存储
+function loadState() {
+  const saved = localStorage.getItem('ai_phone_state');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      Object.assign(state, parsed);
+    } catch(e) {}
+  }
+  // 默认角色
+  if (state.chars.length === 0) {
+    state.chars = [
+      { id: 'default1', name: '小艾', emoji: '🤖', desc: '你是小艾，一个聪明、友善的AI助手，说话简洁有趣，乐于帮助用户解决问题。', greeting: '你好！我是小艾，有什么可以帮你的吗？😊', tags: ['助手', '聊天'] },
+      { id: 'default2', name: '林薇', emoji: '🧝‍♀️', desc: '你是林薇，一个活泼开朗、喜欢聊天的女大学生，说话带点可爱的语气，喜欢用颜文字。用第一人称"我"回复。', greeting: '嗨嗨！我是林薇，很高兴认识你(｡♥‿♥｡)', tags: ['聊天', '陪伴', '日常'] },
+      { id: 'default3', name: '神秘侦探', emoji: '🕵️', desc: '你是一个冷酷神秘的侦探，说话简短犀利，观察力超强，性格略显高冷但内心温暖。', greeting: '...(沉默地打量了你一眼)你找我有什么事？', tags: ['悬疑', '角色扮演'] },
+    ];
+    state.activeCharId = 'default1';
+  }
+  if (state.worldEntries.length === 0) {
+    state.worldEntries = [
+      { id: 'w1', name: '魔法世界设定', keys: ['魔法', '法师', '咒语'], content: '这是一个魔法与科技并存的世界。魔法由精灵语激活，需要消耗使用者的生命力。法师分为5个等级：学徒、见习、正式、高级、大法师。', enabled: false },
+      { id: 'w2', name: '赛博朋克城市', keys: ['赛博', '黑客', '义体'], content: '故事发生在2077年的新上海，霓虹灯与全息广告覆盖着每一栋楼。义体改造合法但昂贵，底层人民只能用廉价二手义体。', enabled: false },
+    ];
+  }
+}
+
+function saveState() {
+  localStorage.setItem('ai_phone_state', JSON.stringify(state));
+}
+
+// ===== 时钟 =====
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours().toString().padStart(2,'0');
+  const m = now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}`;
+}
+
+// ===== Tab 切换 =====
+let currentTab = 'chatlist';
+function switchTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tab + '-screen').classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  currentTab = tab;
+  if (tab === 'chatlist') renderChatList();
+  if (tab === 'chars') renderChars();
+  if (tab === 'world') renderWorld();
+  if (tab === 'settings') updateTokenDisplay();
+}
+
+// ===== 聊天列表 =====
+function renderChatList() {
+  const container = document.getElementById('chat-list-items');
+  if (state.chats.length === 0) {
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:#888;font-size:14px">
+      <div style="font-size:50px;margin-bottom:12px">💬</div>
+      <div>还没有对话</div>
+      <div style="margin-top:6px;font-size:12px">点击右上角 ＋ 开始聊天</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML = state.chats.map(chat => {
+    const char = state.chars.find(c => c.id === chat.charId) || {};
+    const last = chat.messages[chat.messages.length - 1];
+    const preview = last ? (last.role === 'user' ? '你：' + last.content : last.content) : char.greeting || '开始聊天';
+    return `<div class="chat-item" onclick="openChat('${chat.id}')">
+      <div class="avatar">${char.emoji || '🤖'}</div>
+      <div class="chat-info">
+        <div class="chat-name">${char.name || '未知'}</div>
+        <div class="chat-preview">${escHtml(preview.substring(0,30))}</div>
+      </div>
+      <div class="chat-meta">
+        <div class="chat-time">${formatTime(chat.updatedAt)}</div>
+        ${chat.unread ? `<div class="badge">${chat.unread}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showNewChat() {
+  // 选择角色开始聊天
+  if (state.chars.length === 0) { toast('请先创建角色卡'); switchTab('chars'); return; }
+  if (!state.apiKey) { toast('请先设置 API Key'); switchTab('settings'); return; }
+  const char = state.chars.find(c => c.id === state.activeCharId) || state.chars[0];
+  createChat(char.id);
+}
+
+function createChat(charId) {
+  const char = state.chars.find(c => c.id === charId);
+  if (!char) return;
+  if (!state.apiKey) { toast('请先设置 API Key'); switchTab('settings'); return; }
+  const chatId = 'chat_' + Date.now();
+  const chat = { id: chatId, charId, messages: [], updatedAt: Date.now(), unread: 0 };
+  state.chats.unshift(chat);
+  saveState();
+  openChat(chatId);
+}
+
+function openChat(chatId) {
+  state.activeChatId = chatId;
+  const chat = state.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  chat.unread = 0;
+  const char = state.chars.find(c => c.id === chat.charId) || {};
+  document.getElementById('chat-title').textContent = char.name || 'AI';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('chat-screen').classList.add('active');
+  renderMessages();
+  if (chat.messages.length === 0 && char.greeting) {
+    appendMessage({ role: 'assistant', content: char.greeting });
+  }
+  scrollToBottom();
+  saveState();
+}
+
+function goBack() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('chatlist-screen').classList.add('active');
+  document.querySelector('[data-tab="chatlist"]').classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="chatlist"]').classList.add('active');
+  renderChatList();
+}
+
+function renderMessages() {
+  const chat = state.chats.find(c => c.id === state.activeChatId);
+  if (!chat) return;
+  const char = state.chars.find(c => c.id === chat.charId) || {};
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+
+  const sysDiv = document.createElement('div');
+  sysDiv.className = 'sys-msg';
+  sysDiv.textContent = `与 ${char.name || 'AI'} 的对话`;
+  container.appendChild(sysDiv);
+
+  chat.messages.forEach(msg => {
+    container.appendChild(buildBubble(msg, char));
+  });
+}
+
+function buildBubble(msg, char) {
+  const row = document.createElement('div');
+  row.className = 'msg-row' + (msg.role === 'user' ? ' me' : '');
+  const av = document.createElement('div');
+  av.className = 'msg-avatar';
+  av.textContent = msg.role === 'user' ? '👤' : (char ? char.emoji : '🤖');
+  const bub = document.createElement('div');
+  bub.className = 'bubble ' + (msg.role === 'user' ? 'me' : 'other');
+  bub.textContent = msg.content;
+  if (msg.role === 'user') { row.appendChild(bub); row.appendChild(av); }
+  else { row.appendChild(av); row.appendChild(bub); }
+  return row;
+}
+
+function appendMessage(msg) {
+  const chat = state.chats.find(c => c.id === state.activeChatId);
+  if (!chat) return;
+  // avoid duplicate greeting
+  if (chat.messages.length > 0 || msg.role !== 'assistant') {
+    chat.messages.push(msg);
+  } else {
+    chat.messages.push(msg);
+  }
+  const char = state.chars.find(c => c.id === chat.charId) || {};
+  const container = document.getElementById('messages');
+  container.appendChild(buildBubble(msg, char));
+  chat.updatedAt = Date.now();
+  scrollToBottom();
+  saveState();
+}
+
+function scrollToBottom() {
+  const m = document.getElementById('messages');
+  setTimeout(() => { m.scrollTop = m.scrollHeight; }, 50);
+}
+
+// ===== 发送消息 =====
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!state.apiKey) { toast('请先设置 API Key'); return; }
+
+  input.value = '';
+  input.style.height = '';
+  appendMessage({ role: 'user', content: text });
+
+  // 显示 typing
+  const typingEl = showTyping();
+
+  try {
+    const reply = await callAPI(text);
+    typingEl.remove();
+    appendMessage({ role: 'assistant', content: reply });
+  } catch(err) {
+    typingEl.remove();
+    const errMsg = err.message || '请求失败';
+    appendMessage({ role: 'assistant', content: '⚠️ ' + errMsg });
+  }
+}
+
+function showTyping() {
+  const chat = state.chats.find(c => c.id === state.activeChatId);
+  const char = state.chars.find(c => c && chat && c.id === chat.charId) || {};
+  const container = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  row.id = 'typing-indicator';
+  const av = document.createElement('div');
+  av.className = 'msg-avatar';
+  av.textContent = char.emoji || '🤖';
+  const bub = document.createElement('div');
+  bub.className = 'bubble other typing';
+  bub.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  row.appendChild(av); row.appendChild(bub);
+  container.appendChild(row);
+  scrollToBottom();
+  return row;
+}
+
+// ===== API 调用 =====
+async function callAPI(userText) {
+  const chat = state.chats.find(c => c.id === state.activeChatId);
+  const char = chat ? state.chars.find(c => c.id === chat.charId) : null;
+
+  // 构建 system prompt
+  let system = char ? char.desc : '你是一个有帮助的AI助手。';
+
+  // 注入启用的世界书
+  const activeWorld = state.worldEntries.filter(w => w.enabled);
+  if (activeWorld.length > 0) {
+    system += '\n\n[世界设定]\n' + activeWorld.map(w => `## ${w.name}\n${w.content}`).join('\n\n');
+  }
+
+  // 构建消息历史（最近20条）
+  const history = (chat ? chat.messages : []).slice(-20);
+  const messages = history.map(m => ({ role: m.role, content: m.content }));
+  messages.push({ role: 'user', content: userText });
+
+  // 根据 provider 选择不同 API 格式
+  const isOpenAICompat = state.provider !== 'anthropic';
+
+  let url, headers, body;
+
+  if (isOpenAICompat) {
+    url = getEndpointUrl() + '/chat/completions';
+    headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${state.apiKey}`
+    };
+    body = {
+      model: state.model,
+      messages: [{ role: 'system', content: system }, ...messages],
+      max_tokens: state.maxTokens,
+      temperature: state.temperature,
+      top_p: state.topP,
+      frequency_penalty: state.frequencyPenalty,
+    };
+  } else {
+    url = getEndpointUrl() + '/v1/messages';
+    headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': state.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    };
+    body = {
+      model: state.model,
+      system,
+      messages,
+      max_tokens: state.maxTokens,
+    };
+  }
+
+  const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  const data = await resp.json();
+
+  if (!resp.ok) {
+    throw new Error(data.error?.message || data.message || `HTTP ${resp.status}`);
+  }
+
+  // 统计 token
+  const usage = data.usage || {};
+  state.tokenStats.input += (usage.input_tokens || usage.prompt_tokens || 0);
+  state.tokenStats.output += (usage.output_tokens || usage.completion_tokens || 0);
+  updateTokenDisplay();
+  saveState();
+
+  // 提取回复
+  if (isOpenAICompat) {
+    return data.choices?.[0]?.message?.content || '无回复';
+  } else {
+    return data.content?.[0]?.text || '无回复';
+  }
+}
+
+function getEndpointUrl() {
+  if (state.provider === 'openai') return 'https://api.openai.com/v1';
+  if (state.provider === 'deepseek') return 'https://api.deepseek.com/v1';
+  if (state.provider === 'custom') return state.apiProxy || 'https://api.anthropic.com';
+  return state.apiProxy || 'https://api.anthropic.com';
+}
+
+// ===== 角色卡 =====
+let editingCharId = null;
+function renderChars() {
+  const grid = document.getElementById('char-grid');
+  const cards = state.chars.map(c => `
+    <div class="char-card ${c.id === state.activeCharId ? 'active-char' : ''}" onclick="editChar('${c.id}')">
+      <div class="char-cover" style="background:${charColor(c.id)}">${c.emoji || '🤖'}</div>
+      <div class="char-body">
+        <div class="char-name">${escHtml(c.name)}</div>
+        <div class="char-desc">${escHtml(c.desc)}</div>
+        <div class="char-tags">${(c.tags||[]).map(t=>`<span class="tag">${escHtml(t)}</span>`).join('')}</div>
+      </div>
+    </div>
+  `).join('');
+
+  grid.innerHTML = cards + `
+    <div class="add-card" onclick="showNewChar()">
+      <div class="plus">＋</div>
+      <div>创建角色</div>
+    </div>
+  `;
+}
+
+function charColor(id) {
+  const colors = ['linear-gradient(135deg,#667eea,#764ba2)','linear-gradient(135deg,#f093fb,#f5576c)','linear-gradient(135deg,#4facfe,#00f2fe)','linear-gradient(135deg,#43e97b,#38f9d7)','linear-gradient(135deg,#fa709a,#fee140)'];
+  let hash = 0;
+  for (let ch of id) hash += ch.charCodeAt(0);
+  return colors[hash % colors.length];
+}
+
+function showNewChar() {
+  editingCharId = null;
+  document.getElementById('char-modal-title').textContent = '创建角色卡';
+  document.getElementById('char-name-input').value = '';
+  document.getElementById('char-emoji-input').value = '';
+  document.getElementById('char-desc-input').value = '';
+  document.getElementById('char-greeting-input').value = '';
+  document.getElementById('char-tags-input').value = '';
+  document.getElementById('delete-char-btn').style.display = 'none';
+  openModal('char-modal');
+}
+
+function editChar(id) {
+  const char = state.chars.find(c => c.id === id);
+  if (!char) return;
+  editingCharId = id;
+  document.getElementById('char-modal-title').textContent = '编辑角色';
+  document.getElementById('char-name-input').value = char.name;
+  document.getElementById('char-emoji-input').value = char.emoji || '';
+  document.getElementById('char-desc-input').value = char.desc;
+  document.getElementById('char-greeting-input').value = char.greeting || '';
+  document.getElementById('char-tags-input').value = (char.tags || []).join(', ');
+  document.getElementById('delete-char-btn').style.display = 'block';
+  openModal('char-modal');
+}
+
+function saveChar() {
+  const name = document.getElementById('char-name-input').value.trim();
+  if (!name) { toast('请输入角色名称'); return; }
+  const char = {
+    id: editingCharId || 'char_' + Date.now(),
+    name,
+    emoji: document.getElementById('char-emoji-input').value.trim() || '🤖',
+    desc: document.getElementById('char-desc-input').value.trim() || `你是${name}，一个AI角色。`,
+    greeting: document.getElementById('char-greeting-input').value.trim(),
+    tags: document.getElementById('char-tags-input').value.split(',').map(t=>t.trim()).filter(Boolean),
+  };
+  if (editingCharId) {
+    const idx = state.chars.findIndex(c => c.id === editingCharId);
+    if (idx >= 0) state.chars[idx] = char;
+  } else {
+    state.chars.push(char);
+    state.activeCharId = char.id;
+  }
+  saveState();
+  closeModal('char-modal');
+  renderChars();
+  toast(editingCharId ? '角色已更新' : '角色已创建');
+}
+
+function deleteChar() {
+  if (!editingCharId) return;
+  if (!confirm('确定删除这个角色？')) return;
+  state.chars = state.chars.filter(c => c.id !== editingCharId);
+  if (state.activeCharId === editingCharId) state.activeCharId = state.chars[0]?.id || null;
+  saveState();
+  closeModal('char-modal');
+  renderChars();
+  toast('角色已删除');
+}
+
+function importCharFile() { document.getElementById('file-char').click(); }
+
+function handleCharFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      // 支持 SillyTavern 格式
+      const name = data.name || data.char_name || '导入角色';
+      const desc = data.description || data.char_persona || data.personality || '';
+      const greeting = data.first_mes || data.greeting || '';
+      document.getElementById('char-name-input').value = name;
+      document.getElementById('char-desc-input').value = desc;
+      document.getElementById('char-greeting-input').value = greeting;
+      toast('角色卡已导入，请检查并保存');
+    } catch(err) { toast('解析失败：' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ===== 世界书 =====
+function renderWorld() {
+  const list = document.getElementById('world-list');
+  if (state.worldEntries.length === 0) {
+    list.innerHTML = '<div style="padding:40px;text-align:center;color:#888;font-size:14px">暂无世界书条目</div>';
+    return;
+  }
+  list.innerHTML = state.worldEntries.map(w => `
+    <div class="world-item">
+      <div class="world-icon">📖</div>
+      <div class="world-info">
+        <div class="world-name">${escHtml(w.name)}</div>
+        <div class="world-desc">关键词: ${(w.keys||[]).join('、')}</div>
+      </div>
+      <div class="world-toggle">
+        <div class="toggle ${w.enabled?'on':''}" onclick="toggleWorld('${w.id}')"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleWorld(id) {
+  const entry = state.worldEntries.find(w => w.id === id);
+  if (entry) { entry.enabled = !entry.enabled; saveState(); renderWorld(); }
+}
+
+function showWorldModal() {
+  document.getElementById('world-name-input').value = '';
+  document.getElementById('world-keys-input').value = '';
+  document.getElementById('world-content-input').value = '';
+  openModal('world-modal');
+}
+
+function saveWorld() {
+  const name = document.getElementById('world-name-input').value.trim();
+  if (!name) { toast('请输入条目名称'); return; }
+  state.worldEntries.push({
+    id: 'w_' + Date.now(),
+    name,
+    keys: document.getElementById('world-keys-input').value.split(',').map(k=>k.trim()).filter(Boolean),
+    content: document.getElementById('world-content-input').value.trim(),
+    enabled: true,
+  });
+  saveState();
+  closeModal('world-modal');
+  renderWorld();
+  toast('条目已添加');
+}
+
+function importWorldFile() { document.getElementById('file-world').click(); }
+
+function handleWorldFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      // 支持多种格式
+      const entries = Array.isArray(data) ? data : (data.entries || data.lorebook || [data]);
+      let count = 0;
+      entries.forEach(entry => {
+        const name = entry.comment || entry.name || '导入条目';
+        const keys = entry.key || entry.keys || entry.keyword || [];
+        const content = entry.content || entry.text || '';
+        state.worldEntries.push({ id: 'w_' + Date.now() + '_' + count, name, keys: Array.isArray(keys)?keys:[keys], content, enabled: false });
+        count++;
+      });
+      saveState();
+      closeModal('world-modal');
+      renderWorld();
+      toast(`已导入 ${count} 个条目`);
+    } catch(err) { toast('解析失败：' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ===== 设置 =====
+function showApiModal() {
+  document.getElementById('input-apikey').value = state.apiKey;
+  document.getElementById('input-proxy').value = state.apiProxy || '';
+  openModal('api-modal');
+}
+function saveApiKey() {
+  state.apiKey = document.getElementById('input-apikey').value.trim();
+  state.apiProxy = document.getElementById('input-proxy').value.trim() || 'https://api.anthropic.com';
+  saveState();
+  const masked = state.apiKey ? state.apiKey.substring(0,8) + '****' : '未设置';
+  document.getElementById('apikey-display').textContent = masked;
+  closeModal('api-modal');
+  toast('API Key 已保存');
+}
+
+function showModelModal() {
+  document.getElementById('input-model').value = state.model;
+  document.getElementById('input-maxtoken').value = state.maxTokens;
+  openModal('model-modal');
+}
+document.addEventListener('change', e => {
+  if (e.target.id === 'input-model') {
+    document.getElementById('input-custom-model').style.display = e.target.value === 'custom' ? 'block' : 'none';
+  }
+  if (e.target.id === 'input-provider') {
+    document.getElementById('input-custom-endpoint').style.display = e.target.value === 'custom' ? 'block' : 'none';
+  }
+});
+function saveModel() {
+  let model = document.getElementById('input-model').value;
+  if (model === 'custom') model = document.getElementById('input-custom-model').value.trim() || 'claude-sonnet-4-6';
+  state.model = model;
+  state.maxTokens = parseInt(document.getElementById('input-maxtoken').value) || 2048;
+  saveState();
+  document.getElementById('model-display').textContent = state.model;
+  closeModal('model-modal');
+  toast('模型已更新');
+}
+
+function showEndpointModal() {
+  document.getElementById('input-provider').value = state.provider || 'anthropic';
+  openModal('endpoint-modal');
+}
+function saveEndpoint() {
+  state.provider = document.getElementById('input-provider').value;
+  if (state.provider === 'custom') {
+    state.apiProxy = document.getElementById('input-custom-endpoint').value.trim();
+  }
+  const labels = { anthropic: 'Anthropic', openai: 'OpenAI', deepseek: 'DeepSeek', custom: '自定义' };
+  document.getElementById('endpoint-display').textContent = labels[state.provider] || state.provider;
+  saveState();
+  closeModal('endpoint-modal');
+  toast('服务商已更新');
+}
+
+function showParamModal() {
+  document.getElementById('input-temp').value = state.temperature;
+  document.getElementById('input-topp').value = state.topP;
+  document.getElementById('input-freqpen').value = state.frequencyPenalty;
+  openModal('param-modal');
+}
+function saveParams() {
+  state.temperature = parseFloat(document.getElementById('input-temp').value) || 0.8;
+  state.topP = parseFloat(document.getElementById('input-topp').value) || 0.9;
+  state.frequencyPenalty = parseFloat(document.getElementById('input-freqpen').value) || 0;
+  document.getElementById('param-display').textContent = `温度 ${state.temperature}`;
+  saveState();
+  closeModal('param-modal');
+  toast('参数已保存');
+}
+
+function clearHistory() {
+  if (!confirm('确定清除所有对话记录？')) return;
+  state.chats = [];
+  state.tokenStats = { input: 0, output: 0 };
+  saveState();
+  toast('对话记录已清除');
+  updateTokenDisplay();
+}
+
+function updateTokenDisplay() {
+  document.getElementById('stat-in').textContent = formatNum(state.tokenStats.input);
+  document.getElementById('stat-out').textContent = formatNum(state.tokenStats.output);
+  document.getElementById('stat-total').textContent = formatNum(state.tokenStats.input + state.tokenStats.output);
+}
+
+function showChatInfo() {
+  const chat = state.chats.find(c => c.id === state.activeChatId);
+  const char = chat ? state.chars.find(c => c.id === chat.charId) : null;
+  if (!char) return;
+  document.getElementById('chat-info-title').textContent = char.name;
+  document.getElementById('chat-info-body').innerHTML = `
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:60px">${char.emoji}</div>
+      <div style="font-size:18px;font-weight:600;margin-top:8px">${escHtml(char.name)}</div>
+      <div style="font-size:13px;color:#888;margin-top:4px">${(char.tags||[]).join(' · ')}</div>
+    </div>
+    <div style="background:#f5f5f5;border-radius:12px;padding:14px;margin-top:4px;font-size:13px;color:#555;line-height:1.6">${escHtml(char.desc)}</div>
+    <button class="modal-btn primary" style="margin-top:16px" onclick="setActiveChar('${char.id}');closeModal('chat-info-modal')">切换到此角色</button>
+    <button class="modal-btn danger" onclick="deleteChatConfirm('${chat.id}')">删除对话</button>
+  `;
+  openModal('chat-info-modal');
+}
+
+function setActiveChar(id) { state.activeCharId = id; saveState(); toast('当前角色已切换'); }
+function deleteChatConfirm(id) {
+  if (!confirm('确定删除这个对话？')) return;
+  state.chats = state.chats.filter(c => c.id !== id);
+  saveState();
+  closeModal('chat-info-modal');
+  goBack();
+  toast('对话已删除');
+}
+
+// ===== 数据导入导出 =====
+function exportData() {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ai_phone_backup_' + Date.now() + '.json';
+  a.click();
+  toast('数据已导出');
+}
+function importData() { document.getElementById('file-import').click(); }
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (confirm('导入将覆盖当前数据，确定吗？')) {
+        Object.assign(state, data);
+        saveState();
+        renderChatList();
+        renderChars();
+        renderWorld();
+        updateTokenDisplay();
+        toast('导入成功');
+      }
+    } catch(err) { toast('导入失败'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ===== 工具函数 =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show';
+  setTimeout(() => { el.className = ''; }, 2100);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  }
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+
+function formatNum(n) {
+  if (n >= 1000) return (n/1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+function autoResize(el) {
+  el.style.height = '';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+// 阻止弹窗冒泡关闭
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => e.stopPropagation());
+});
+
+// ===== 初始化 =====
+loadState();
+updateClock();
+setInterval(updateClock, 30000);
+renderChatList();
+
+// 恢复设置显示
+if (state.apiKey) {
+  document.getElementById('apikey-display').textContent = state.apiKey.substring(0,8) + '****';
+}
+document.getElementById('model-display').textContent = state.model;
+document.getElementById('param-display').textContent = `温度 ${state.temperature}`;
+const providerLabels = { anthropic: 'Anthropic', openai: 'OpenAI', deepseek: 'DeepSeek', custom: '自定义' };
+document.getElementById('endpoint-display').textContent = providerLabels[state.provider] || 'Anthropic';
+updateTokenDisplay();
+</script>
+</body>
+</html>
